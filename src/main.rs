@@ -99,32 +99,22 @@ fn list(args: Vec<String>) {
         if data.get(config.selected_subject).is_some() {
             for (i, subject) in data.iter().enumerate() {
                 if i == config.selected_subject {
-                    println!("-> {} - {}", i, subject.name);
+                    println!("-> {} - {}", i + 1, subject.name);
                 } else {
-                    println!("   {} - {}", i, subject.name);
+                    println!("   {} - {}", i + 1, subject.name);
                 }
                 for (j, chapter) in subject.chapters.iter().enumerate() {
                     if chapter.label.is_none() {
                         if i == config.selected_subject && j == config.selected_chapter {
-                            println!("  -> {} - {}", j, chapter.name);
+                            println!("  -> {} - {}", j + 1, chapter.name);
                         } else {
-                            println!("     {} - {}", j, chapter.name);
+                            println!("     {} - {}", j + 1, chapter.name);
                         }
                     } else {
                         if i == config.selected_subject && j == config.selected_chapter {
-                            println!(
-                                "  -> {} - [{}] {}",
-                                j,
-                                chapter.label.clone().unwrap(),
-                                chapter.name
-                            );
+                            println!("  -> {} - [{}] {}", j + 1, chapter.label.clone().unwrap(), chapter.name);
                         } else {
-                            println!(
-                                "     {} - [{}] {}",
-                                j,
-                                chapter.label.clone().unwrap(),
-                                chapter.name
-                            );
+                            println!("     {} - [{}] {}", j + 1, chapter.label.clone().unwrap(), chapter.name);
                         }
                     }
                 }
@@ -140,7 +130,7 @@ fn select(args: Vec<String>) {
 
     // select <subject_id>
     if parseable(&args[0]) && args.get(1).is_none() {
-        let subject_id = args[0].parse::<usize>().unwrap();
+        let subject_id = args[0].parse::<usize>().unwrap() - 1;
         if data.get(subject_id).is_none() {
             println!("The entered subject id doesn't exist");
             return;
@@ -163,7 +153,7 @@ fn select(args: Vec<String>) {
             println!("There is no selected subject");
             return;
         }
-        let chapter_id = args[1].parse::<usize>().unwrap();
+        let chapter_id = args[1].parse::<usize>().unwrap() - 1;
 
         if data[selected_subject].chapters.get(chapter_id).is_some() {
             selected_chapter = chapter_id;
@@ -181,14 +171,14 @@ fn select(args: Vec<String>) {
     }
     // select <subject_id> <chapter_id>
     else if parseable(&args[0]) && args.get(1).is_some_and(parseable) {
-        let subject_id = args[0].parse::<usize>().unwrap();
+        let subject_id = args[0].parse::<usize>().unwrap() - 1;
         if data.get(subject_id).is_none() {
             println!("The entered subject id doesn't exist");
             return;
         }
 
         let subject = &data[subject_id];
-        let chapter_id = args[1].parse::<usize>().unwrap();
+        let chapter_id = args[1].parse::<usize>().unwrap() - 1;
         if subject.chapters.get(chapter_id).is_none() {
             println!("The entered chapter id of subject doesn't exist");
             return;
@@ -336,6 +326,7 @@ fn edit(args: Vec<String>) {
                 sum_exercises = false;
             }
             data[config.selected_subject].chapters[config.selected_chapter].sum_exercises = sum_exercises;
+            write_data(data);
         }
         // edit chapter --label <new_label>
         if args[1] == "--label" && args.get(2).is_some() {
@@ -498,10 +489,11 @@ fn report(args: Vec<String>) {
     }
     if data[config.selected_subject].chapters.get(config.selected_chapter).is_none() {
         println!("There is no selected chapter to report");
+        return;
     }
 
     // reports selected chapter
-    if args.get(1).is_none() {
+    if args.get(0).is_none() {
         let subject = &data[config.selected_subject];
         let chapter = &subject.chapters[config.selected_chapter];
 
@@ -552,11 +544,37 @@ fn report(args: Vec<String>) {
         println!("Solved exercises:   {:04} ({:05.2}%)", solved, solved as f32 * 100f32 / (solved + unsolved) as f32);
     }
     // report subject
-    else if args.get(1).is_some_and(|v| v == "subject" || parseable(v)) {}
+    else if args.get(0).is_some_and(|v| v == "subject" || parseable(v)) {}
     // report chapter x | x..y | [x y ... z] | [x, y, ..., z]
-    else if args.get(1).is_some_and(|v| v == "chapter")
-        && args.get(2).is_some_and(|v| range_pattern().is_match(v) || list_pattern().is_match(v)) {}
+    else if args.get(0).is_some_and(|v| v == "chapter")
+        && args.get(1).is_some_and(|v| range_pattern().is_match(v) || list_pattern().is_match(v)) {}
     // report chapter --label <label>
-    else if args.get(1).is_some_and(|v| v == "chapter")
-        && args.get(2).is_some_and(|v| v == "--label") {}
+    else if args.get(0).is_some_and(|v| v == "chapter")
+        && args.get(1).is_some_and(|v| v == "--label")
+        && args.get(2).is_some() {
+        let mut chapters: Vec<&Chapter> = vec![];
+        if data.get(config.selected_subject).is_none() {
+            println!("There is no selected subject to report");
+            return;
+        }
+
+        for chapter in data[config.selected_subject].chapters.iter() {
+            if chapter.label.clone().is_some_and(|label| label == args[2]) {
+                chapters.push(chapter);
+            }
+        }
+
+        let mut counting = 0;
+        println!("-> {}", data[config.selected_subject].name);
+
+        for chapter in chapters {
+            println!("  -> {}", chapter.name);
+            for (i, exercise) in chapter.exercises.iter().enumerate() {
+                println!("     {counting} - #{}", counting + 1);
+                if chapter.sum_exercises {
+                    counting += 1;
+                }
+            }
+        }
+    }
 }
